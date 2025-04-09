@@ -40,6 +40,12 @@ JIRA_USERNAME=your-email@example.com JIRA_API_TOKEN=your-api-token ./jira-mcp
             "description": "Jira API Token",
             "password": true
         },
+        {
+            "type": "promptString",
+            "id": "jira_url",
+            "description": "Jira URL(e.g. https://example.atlassian.net)",
+            "password": false
+        }
     ],
     "servers": {
         "jira-mcp-server": {
@@ -48,7 +54,8 @@ JIRA_USERNAME=your-email@example.com JIRA_API_TOKEN=your-api-token ./jira-mcp
             "args": [],
             "env": {
                 "JIRA_USERNAME": "${input:jira_user_name}",
-                "JIRA_API_TOKEN": "${input:jira_api_token}"
+                "JIRA_API_TOKEN": "${input:jira_api_token}",
+                "JIRA_URL": "${input:jira_url}"
             }
         }
     }
