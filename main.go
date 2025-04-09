@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	mcpjira "mcp-sample/pkg/jira"
+	mcpjira "jira-mcp/pkg/jira"
 	"os"
 
 	jira "github.com/andygrunwald/go-jira"
@@ -12,7 +12,7 @@ import (
 func main() {
 	// Create a new MCP server
 	s := server.NewMCPServer(
-		"Jira MCP",
+		"Jira MCP Server",
 		"1.0.0",
 		server.WithResourceCapabilities(false, false),
 		server.WithLogging(),

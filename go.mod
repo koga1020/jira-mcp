@@ -1,4 +1,4 @@
-module mcp-sample
+module jira-mcp
 
 go 1.23.3
 
