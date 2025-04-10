@@ -26,6 +26,7 @@ func main() {
 	client, _ := jira.NewClient(tp.Client(), os.Getenv("JIRA_URL"))
 
 	s.AddTool(mcpjira.GetIssue(client))
+	s.AddTool(mcpjira.CreateIssue(client))
 
 	// Start the server
 	if err := server.ServeStdio(s); err != nil {
