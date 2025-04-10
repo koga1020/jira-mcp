@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	mcpjira "jira-mcp/pkg/jira"
+	mcpjira "jira-mcp/internal/jira"
 	"os"
 
 	jira "github.com/andygrunwald/go-jira"
