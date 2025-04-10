@@ -87,3 +87,43 @@ func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 			return mcp.NewToolResultText(string(issueJSON)), nil
 		}
 }
+
+func SearchIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+	return mcp.NewTool("search_issue",
+			mcp.WithDescription("Search for issues in Jira using JQL"),
+			mcp.WithString("jql",
+				mcp.Required(),
+				mcp.Description("JQL query string to search issues"),
+			),
+			mcp.WithNumber("max_results",
+				mcp.Description("Maximum number of results to return (default: 50)"),
+			),
+		),
+		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			jql := request.Params.Arguments["jql"].(string)
+
+			// 検索オプションの設定
+			searchOptions := &jira.SearchOptions{
+				MaxResults: 50, // デフォルト値
+			}
+
+			// max_resultsが指定されていれば上書き
+			if maxResults, ok := request.Params.Arguments["max_results"]; ok {
+				searchOptions.MaxResults = int(maxResults.(float64))
+			}
+
+			// JQLを使ってイシューを検索
+			issues, _, err := client.Issue.Search(jql, searchOptions)
+			if err != nil {
+				return nil, err
+			}
+
+			// 検索結果をJSONに変換
+			issuesJSON, err := json.Marshal(issues)
+			if err != nil {
+				return nil, err
+			}
+
+			return mcp.NewToolResultText(string(issuesJSON)), nil
+		}
+}

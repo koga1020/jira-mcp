@@ -27,6 +27,7 @@ func main() {
 
 	s.AddTool(mcpjira.GetIssue(client))
 	s.AddTool(mcpjira.CreateIssue(client))
+	s.AddTool(mcpjira.SearchIssue(client))
 
 	// Start the server
 	if err := server.ServeStdio(s); err != nil {
