@@ -17,12 +17,6 @@ go build
 
 ## Usage
 
-### Running the server
-
-```bash
-JIRA_USERNAME=your-email@example.com JIRA_API_TOKEN=your-api-token ./jira-mcp
-```
-
 ### Setting up in VS Code
 
 ```json
