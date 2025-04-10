@@ -19,7 +19,10 @@ func GetIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFun
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			issueKey := request.Params.Arguments["issue_key"].(string)
-			issue, _, _ := client.Issue.Get(issueKey, nil)
+			issue, _, err := client.Issue.Get(issueKey, nil)
+			if err != nil {
+				return nil, err
+			}
 			issueJson, err := json.Marshal((issue))
 			if err != nil {
 				return nil, err
