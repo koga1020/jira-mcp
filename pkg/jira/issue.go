@@ -10,7 +10,7 @@ import (
 )
 
 func GetIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("jira_issue",
+	return mcp.NewTool("get_issue",
 			mcp.WithDescription("Get issue details from Jira"),
 			mcp.WithString("issue_key",
 				mcp.Required(),
