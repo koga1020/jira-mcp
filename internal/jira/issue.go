@@ -52,12 +52,16 @@ func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 				mcp.Required(),
 				mcp.Description("The type of the issue (e.g., 'Bug', 'Task', 'Story')"),
 			),
+			mcp.WithString("parent",
+				mcp.Description("The parent issue key"),
+			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			projectKey := request.Params.Arguments["project_key"].(string)
 			summary := request.Params.Arguments["summary"].(string)
 			description := request.Params.Arguments["description"].(string)
 			issueType := request.Params.Arguments["issue_type"].(string)
+			parent := request.Params.Arguments["parent"].(string)
 
 			issueFields := jira.IssueFields{
 				Project: jira.Project{
@@ -67,6 +71,9 @@ func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 				Description: description,
 				Type: jira.IssueType{
 					Name: issueType,
+				},
+				Parent: &jira.Parent{
+					Key: parent,
 				},
 			}
 
