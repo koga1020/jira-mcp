@@ -61,7 +61,7 @@ func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 			summary := request.Params.Arguments["summary"].(string)
 			description := request.Params.Arguments["description"].(string)
 			issueType := request.Params.Arguments["issue_type"].(string)
-			parent := request.Params.Arguments["parent"].(string)
+			parentRaw, parentExists := request.Params.Arguments["parent"]
 
 			issueFields := jira.IssueFields{
 				Project: jira.Project{
@@ -72,9 +72,15 @@ func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 				Type: jira.IssueType{
 					Name: issueType,
 				},
-				Parent: &jira.Parent{
-					Key: parent,
-				},
+			}
+
+			if parentExists {
+				parent, ok := parentRaw.(string)
+				if ok && parent != "" {
+					issueFields.Parent = &jira.Parent{
+						Key: parent,
+					}
+				}
 			}
 
 			issue := jira.Issue{
