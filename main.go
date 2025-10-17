@@ -1,37 +1,37 @@
 package main
 
 import (
-	"fmt"
-	mcpjira "jira-mcp/internal/jira"
+	"context"
+	"log"
 	"os"
 
 	jira "github.com/andygrunwald/go-jira"
-	"github.com/mark3labs/mcp-go/server"
+	mcpjira "github.com/koga1020/jira-mcp/internal/jira"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func main() {
-	// Create a new MCP server
-	s := server.NewMCPServer(
-		"Jira MCP Server",
-		"1.0.0",
-		server.WithResourceCapabilities(false, false),
-		server.WithLogging(),
-	)
-
 	// Read JIRA credentials from environment variables
 	tp := jira.BasicAuthTransport{
 		Username: os.Getenv("JIRA_USERNAME"),
 		Password: os.Getenv("JIRA_API_TOKEN"),
 	}
-	client, _ := jira.NewClient(tp.Client(), os.Getenv("JIRA_URL"))
+	client, err := jira.NewClient(tp.Client(), os.Getenv("JIRA_URL"))
+	if err != nil {
+		log.Fatalf("Failed to create JIRA client: %v", err)
+	}
 
-	s.AddTool(mcpjira.GetIssue(client))
-	s.AddTool(mcpjira.CreateIssue(client))
-	s.AddTool(mcpjira.SearchIssue(client))
-	s.AddTool(mcpjira.EditIssue(client))
+	// Create MCP server
+	server := mcp.NewServer(&mcp.Implementation{
+		Name:    "jira-mcp",
+		Version: "1.0.0",
+	}, nil)
+
+	// Add tools
+	mcpjira.AddTools(server, client)
 
 	// Start the server
-	if err := server.ServeStdio(s); err != nil {
-		fmt.Printf("Server error: %v\n", err)
+	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+		log.Printf("Server failed: %v", err)
 	}
 }

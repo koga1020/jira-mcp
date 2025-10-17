@@ -3,181 +3,182 @@ package jira
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/andygrunwald/go-jira"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func GetIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("get_jira_issue",
-			mcp.WithDescription("Get issue details from Jira"),
-			mcp.WithString("issue_key",
-				mcp.Required(),
-				mcp.Description("The issue key to retrieve"),
-			),
-		),
-		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			issueKey := request.Params.Arguments["issue_key"].(string)
-			issue, _, err := client.Issue.Get(issueKey, nil)
-			if err != nil {
-				return nil, err
-			}
-			issueJson, err := json.Marshal((issue))
-			if err != nil {
-				return nil, err
-			}
+// AddTools registers all JIRA tools to the MCP server
+func AddTools(server *mcp.Server, client *jira.Client) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_jira_issue",
+		Description: "Get issue details from Jira",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args GetIssueArgs) (*mcp.CallToolResult, any, error) {
+		return getIssue(ctx, client, args)
+	})
 
-			return mcp.NewToolResultText(string(issueJson)), nil
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "create_jira_issue",
+		Description: "Create a new issue in Jira",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args CreateIssueArgs) (*mcp.CallToolResult, any, error) {
+		return createIssue(ctx, client, args)
+	})
 
-		}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "search_jira_issue",
+		Description: "Search for issues in Jira using JQL",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args SearchIssueArgs) (*mcp.CallToolResult, any, error) {
+		return searchIssue(ctx, client, args)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "edit_jira_issue",
+		Description: "Edit issue in Jira",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args EditIssueArgs) (*mcp.CallToolResult, any, error) {
+		return editIssue(ctx, client, args)
+	})
 }
 
-func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("create_jira_issue",
-			mcp.WithDescription("Create a new issue in Jira"),
-			mcp.WithString("project_key",
-				mcp.Required(),
-				mcp.Description("The project key where the issue will be created"),
-			),
-			mcp.WithString("summary",
-				mcp.Required(),
-				mcp.Description("The summary/title of the issue"),
-			),
-			mcp.WithString("description",
-				mcp.Required(),
-				mcp.Description("The description of the issue"),
-			),
-			mcp.WithString("issue_type",
-				mcp.Required(),
-				mcp.Description("The type of the issue (e.g., 'Bug', 'Task', 'Story')"),
-			),
-			mcp.WithString("parent",
-				mcp.Description("The parent issue key"),
-			),
-		),
-		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			projectKey := request.Params.Arguments["project_key"].(string)
-			summary := request.Params.Arguments["summary"].(string)
-			description := request.Params.Arguments["description"].(string)
-			issueType := request.Params.Arguments["issue_type"].(string)
-			parentRaw, parentExists := request.Params.Arguments["parent"]
-
-			issueFields := jira.IssueFields{
-				Project: jira.Project{
-					Key: projectKey,
-				},
-				Summary:     summary,
-				Description: description,
-				Type: jira.IssueType{
-					Name: issueType,
-				},
-			}
-
-			if parentExists {
-				parent, ok := parentRaw.(string)
-				if ok && parent != "" {
-					issueFields.Parent = &jira.Parent{
-						Key: parent,
-					}
-				}
-			}
-
-			issue := jira.Issue{
-				Fields: &issueFields,
-			}
-
-			createdIssue, _, err := client.Issue.Create(&issue)
-			if err != nil {
-				return nil, err
-			}
-
-			issueJSON, err := json.Marshal(createdIssue)
-			if err != nil {
-				return nil, err
-			}
-
-			return mcp.NewToolResultText(string(issueJSON)), nil
-		}
+// GetIssueArgs defines the parameters for getting a JIRA issue
+type GetIssueArgs struct {
+	IssueKey string `json:"issue_key" jsonschema:"The issue key to retrieve"`
 }
 
-func SearchIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("search_jira_issue",
-			mcp.WithDescription("Search for issues in Jira using JQL"),
-			mcp.WithString("jql",
-				mcp.Required(),
-				mcp.Description("JQL query string to search issues"),
-			),
-			mcp.WithNumber("max_results",
-				mcp.Description("Maximum number of results to return (default: 50)"),
-			),
-		),
-		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			jql := request.Params.Arguments["jql"].(string)
+func getIssue(ctx context.Context, client *jira.Client, args GetIssueArgs) (*mcp.CallToolResult, any, error) {
+	issue, _, err := client.Issue.Get(args.IssueKey, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get issue: %w", err)
+	}
 
-			// 検索オプションの設定
-			searchOptions := &jira.SearchOptions{
-				MaxResults: 50, // デフォルト値
-			}
+	issueJSON, err := json.Marshal(issue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal issue: %w", err)
+	}
 
-			// max_resultsが指定されていれば上書き
-			if maxResults, ok := request.Params.Arguments["max_results"]; ok {
-				searchOptions.MaxResults = int(maxResults.(float64))
-			}
-
-			// JQLを使ってイシューを検索
-			issues, _, err := client.Issue.Search(jql, searchOptions)
-			if err != nil {
-				return nil, err
-			}
-
-			// 検索結果をJSONに変換
-			issuesJSON, err := json.Marshal(issues)
-			if err != nil {
-				return nil, err
-			}
-
-			return mcp.NewToolResultText(string(issuesJSON)), nil
-		}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(issueJSON)},
+		},
+	}, nil, nil
 }
 
-func EditIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("edit_jira_issue",
-			mcp.WithDescription("Edit issue in Jira"),
-			mcp.WithString("issue_key",
-				mcp.Required(),
-				mcp.Description("The issue key"),
-			),
-			mcp.WithString("description",
-				mcp.Description("The description of the issue"),
-			),
-		),
-		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			issueKey := request.Params.Arguments["issue_key"].(string)
-			description := request.Params.Arguments["description"].(string)
+// CreateIssueArgs defines the parameters for creating a JIRA issue
+type CreateIssueArgs struct {
+	ProjectKey  string  `json:"project_key" jsonschema:"The project key where the issue will be created"`
+	Summary     string  `json:"summary" jsonschema:"The summary/title of the issue"`
+	Description string  `json:"description" jsonschema:"The description of the issue"`
+	IssueType   string  `json:"issue_type" jsonschema:"The type of the issue (e.g. 'Bug' 'Task' 'Story')"`
+	Parent      *string `json:"parent,omitempty" jsonschema:"The parent issue key (optional)"`
+}
 
-			issue := &jira.Issue{
-				Fields: &jira.IssueFields{
-					Description: description,
-				},
-			}
+func createIssue(ctx context.Context, client *jira.Client, args CreateIssueArgs) (*mcp.CallToolResult, any, error) {
+	issueFields := jira.IssueFields{
+		Project: jira.Project{
+			Key: args.ProjectKey,
+		},
+		Summary:     args.Summary,
+		Description: args.Description,
+		Type: jira.IssueType{
+			Name: args.IssueType,
+		},
+	}
 
-			req, err := client.NewRequest("PUT", "rest/api/2/issue/"+issueKey, issue)
-			if err != nil {
-				return nil, err
-			}
-
-			updatedIssue := new(jira.Issue)
-			_, err = client.Do(req, updatedIssue)
-			if err != nil {
-				return nil, err
-			}
-
-			issueJSON, err := json.Marshal(updatedIssue)
-			if err != nil {
-				return nil, err
-			}
-
-			return mcp.NewToolResultText(string(issueJSON)), nil
+	// Add parent if specified
+	if args.Parent != nil && *args.Parent != "" {
+		issueFields.Parent = &jira.Parent{
+			Key: *args.Parent,
 		}
+	}
+
+	issue := jira.Issue{
+		Fields: &issueFields,
+	}
+
+	createdIssue, _, err := client.Issue.Create(&issue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create issue: %w", err)
+	}
+
+	issueJSON, err := json.Marshal(createdIssue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal created issue: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(issueJSON)},
+		},
+	}, nil, nil
+}
+
+// SearchIssueArgs defines the parameters for searching JIRA issues
+type SearchIssueArgs struct {
+	JQL        string `json:"jql" jsonschema:"JQL query string to search issues"`
+	MaxResults *int   `json:"max_results,omitempty" jsonschema:"Maximum number of results to return (default: 50)"`
+}
+
+func searchIssue(ctx context.Context, client *jira.Client, args SearchIssueArgs) (*mcp.CallToolResult, any, error) {
+	searchOptions := &jira.SearchOptions{
+		MaxResults: 50, // デフォルト値
+	}
+
+	// max_resultsが指定されていれば上書き
+	if args.MaxResults != nil {
+		searchOptions.MaxResults = *args.MaxResults
+	}
+
+	// JQLを使ってイシューを検索
+	issues, _, err := client.Issue.Search(args.JQL, searchOptions)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to search issues: %w", err)
+	}
+
+	// 検索結果をJSONに変換
+	issuesJSON, err := json.Marshal(issues)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal search results: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(issuesJSON)},
+		},
+	}, nil, nil
+}
+
+// EditIssueArgs defines the parameters for editing a JIRA issue
+type EditIssueArgs struct {
+	IssueKey    string `json:"issue_key" jsonschema:"The issue key"`
+	Description string `json:"description" jsonschema:"The description of the issue"`
+}
+
+func editIssue(ctx context.Context, client *jira.Client, args EditIssueArgs) (*mcp.CallToolResult, any, error) {
+	issue := &jira.Issue{
+		Fields: &jira.IssueFields{
+			Description: args.Description,
+		},
+	}
+
+	req, err := client.NewRequest("PUT", "rest/api/2/issue/"+args.IssueKey, issue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	updatedIssue := new(jira.Issue)
+	_, err = client.Do(req, updatedIssue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to update issue: %w", err)
+	}
+
+	issueJSON, err := json.Marshal(updatedIssue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal updated issue: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(issueJSON)},
+		},
+	}, nil, nil
 }
