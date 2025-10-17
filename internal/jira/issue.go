@@ -46,7 +46,10 @@ type GetIssueArgs struct {
 }
 
 func getIssue(ctx context.Context, client *jira.Client, args GetIssueArgs) (*mcp.CallToolResult, any, error) {
-	issue, _, err := client.Issue.Get(args.IssueKey, nil)
+	// 必要なフィールドのみ取得してトークン消費を削減
+	issue, _, err := client.Issue.Get(args.IssueKey, &jira.GetQueryOptions{
+		Fields: "key,summary,description,status,assignee,reporter,priority,created,updated,comment,parent,project,issuetype,labels",
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get issue: %w", err)
 	}
@@ -119,8 +122,10 @@ type SearchIssueArgs struct {
 }
 
 func searchIssue(ctx context.Context, client *jira.Client, args SearchIssueArgs) (*mcp.CallToolResult, any, error) {
+	// 必要なフィールドのみ取得してトークン消費を削減
 	searchOptions := &jira.SearchOptions{
 		MaxResults: 50, // デフォルト値
+		Fields:     []string{"key", "summary", "description", "status", "assignee", "reporter", "priority", "created", "updated", "parent", "project", "issuetype"},
 	}
 
 	// max_resultsが指定されていれば上書き
