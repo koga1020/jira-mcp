@@ -10,7 +10,7 @@ import (
 )
 
 func GetIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("get_issue",
+	return mcp.NewTool("get_jira_issue",
 			mcp.WithDescription("Get issue details from Jira"),
 			mcp.WithString("issue_key",
 				mcp.Required(),
@@ -34,7 +34,7 @@ func GetIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFun
 }
 
 func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("create_issue",
+	return mcp.NewTool("create_jira_issue",
 			mcp.WithDescription("Create a new issue in Jira"),
 			mcp.WithString("project_key",
 				mcp.Required(),
@@ -102,7 +102,7 @@ func CreateIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 }
 
 func SearchIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("search_issue",
+	return mcp.NewTool("search_jira_issue",
 			mcp.WithDescription("Search for issues in Jira using JQL"),
 			mcp.WithString("jql",
 				mcp.Required(),
@@ -138,5 +138,46 @@ func SearchIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandler
 			}
 
 			return mcp.NewToolResultText(string(issuesJSON)), nil
+		}
+}
+
+func EditIssue(client *jira.Client) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+	return mcp.NewTool("edit_jira_issue",
+			mcp.WithDescription("Edit issue in Jira"),
+			mcp.WithString("issue_key",
+				mcp.Required(),
+				mcp.Description("The issue key"),
+			),
+			mcp.WithString("description",
+				mcp.Description("The description of the issue"),
+			),
+		),
+		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			issueKey := request.Params.Arguments["issue_key"].(string)
+			description := request.Params.Arguments["description"].(string)
+
+			issue := &jira.Issue{
+				Fields: &jira.IssueFields{
+					Description: description,
+				},
+			}
+
+			req, err := client.NewRequest("PUT", "rest/api/2/issue/"+issueKey, issue)
+			if err != nil {
+				return nil, err
+			}
+
+			updatedIssue := new(jira.Issue)
+			_, err = client.Do(req, updatedIssue)
+			if err != nil {
+				return nil, err
+			}
+
+			issueJSON, err := json.Marshal(updatedIssue)
+			if err != nil {
+				return nil, err
+			}
+
+			return mcp.NewToolResultText(string(issueJSON)), nil
 		}
 }
