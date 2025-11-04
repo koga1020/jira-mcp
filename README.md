@@ -84,6 +84,8 @@ go build
 - `create_jira_issue`: Create a new issue in Jira
 - `search_jira_issue`: Search for issues using JQL
 - `edit_jira_issue`: Edit an existing issue
+- `add_jira_comment`: Add a comment to a Jira issue
+- `update_jira_comment`: Update an existing comment on a Jira issue
 
 ## Obtaining Jira API Token
 

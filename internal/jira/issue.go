@@ -38,6 +38,20 @@ func AddTools(server *mcp.Server, client *jira.Client) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args EditIssueArgs) (*mcp.CallToolResult, any, error) {
 		return editIssue(ctx, client, args)
 	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "add_jira_comment",
+		Description: "Add a comment to a Jira issue",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args AddCommentArgs) (*mcp.CallToolResult, any, error) {
+		return addComment(ctx, client, args)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "update_jira_comment",
+		Description: "Update an existing comment on a Jira issue",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args UpdateCommentArgs) (*mcp.CallToolResult, any, error) {
+		return updateComment(ctx, client, args)
+	})
 }
 
 // GetIssueArgs defines the parameters for getting a JIRA issue
@@ -184,6 +198,64 @@ func editIssue(ctx context.Context, client *jira.Client, args EditIssueArgs) (*m
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(issueJSON)},
+		},
+	}, nil, nil
+}
+
+// AddCommentArgs defines the parameters for adding a comment to a JIRA issue
+type AddCommentArgs struct {
+	IssueKey string `json:"issue_key" jsonschema:"The issue key to add comment to"`
+	Body     string `json:"body" jsonschema:"The comment body text"`
+}
+
+func addComment(ctx context.Context, client *jira.Client, args AddCommentArgs) (*mcp.CallToolResult, any, error) {
+	comment := &jira.Comment{
+		Body: args.Body,
+	}
+
+	createdComment, _, err := client.Issue.AddComment(args.IssueKey, comment)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to add comment: %w", err)
+	}
+
+	commentJSON, err := json.Marshal(createdComment)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal comment: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(commentJSON)},
+		},
+	}, nil, nil
+}
+
+// UpdateCommentArgs defines the parameters for updating a comment on a JIRA issue
+type UpdateCommentArgs struct {
+	IssueKey  string `json:"issue_key" jsonschema:"The issue key that contains the comment"`
+	CommentID string `json:"comment_id" jsonschema:"The ID of the comment to update"`
+	Body      string `json:"body" jsonschema:"The new comment body text"`
+}
+
+func updateComment(ctx context.Context, client *jira.Client, args UpdateCommentArgs) (*mcp.CallToolResult, any, error) {
+	comment := &jira.Comment{
+		ID:   args.CommentID,
+		Body: args.Body,
+	}
+
+	updatedComment, _, err := client.Issue.UpdateComment(args.IssueKey, comment)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to update comment: %w", err)
+	}
+
+	commentJSON, err := json.Marshal(updatedComment)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal updated comment: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(commentJSON)},
 		},
 	}, nil, nil
 }
